@@ -20,4 +20,3 @@ updates:
       interval: "weekly"
       day: "tuesday"
     target-branch: "develop"
-

@@ -1,6 +1,6 @@
 # Contributing to T-Pot Payload Server
 
-First off, thank you for considering contributing to the T-Pot Payload Server! 
+First off, thank you for considering contributing to the T-Pot Payload Server!
 
 ## General Rules and Respect
 
@@ -15,8 +15,8 @@ For this reason it is important to follow some easy rules based on a simple but 
 
 ## Where to Contribute
 
-All active development happens on the **`develop`** branch. 
-- Please **do not** open Pull Requests directly against `main`. 
+All active development happens on the **`develop`** branch.
+- Please **do not** open Pull Requests directly against `main`.
 - Always create your feature branch from `develop` and submit your Pull Request back to `develop`.
 
 ## Development Setup
