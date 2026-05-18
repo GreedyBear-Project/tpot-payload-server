@@ -1,0 +1,14 @@
+venv/
+.venv/
+.env
+.env.*
+__pycache__/
+
+# JetBrains IDEs (PyCharm, IntelliJ, etc.)
+.idea/
+
+# Pytest
+.pytest_cache/
+
+# Ruff cache
+.ruff_cache/

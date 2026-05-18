@@ -1,0 +1,50 @@
+[project]
+name = "tpot-payload-server"
+version = "0.1.0"
+description = "Payload integration project for T-Pot and GreedyBear"
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "fastapi==0.111.0",
+    "uvicorn==0.30.1",
+]
+
+[dependency-groups]
+test = [
+    "pytest==8.2.2",
+]
+lint = [
+    "ruff==0.15.12",
+    "pre-commit==3.7.1",
+]
+
+[tool.ruff]
+extend-exclude = [
+    ".github",
+    ".idea",
+    ".vscode",
+    ".venv",
+    "venv",
+]
+include = ["*.py"]
+indent-width = 4
+line-length = 160
+output-format = "full"
+respect-gitignore = false
+show-fixes = true
+target-version = "py313"
+
+[tool.ruff.format]
+docstring-code-format = true
+indent-style = "space"
+line-ending = "lf"
+quote-style = "double"
+skip-magic-trailing-comma = false
+
+[tool.ruff.lint]
+select = ["ALL"]
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "app",
+]
