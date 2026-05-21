@@ -3,19 +3,20 @@ name = "tpot-payload-server"
 version = "0.1.0"
 description = "Payload integration project for T-Pot and GreedyBear"
 readme = "README.md"
-requires-python = ">=3.13,<3.14"
+requires-python = ">=3.14"
 dependencies = [
-    "fastapi==0.111.0",
-    "uvicorn==0.30.1",
+    "fastapi==0.136.1",
+    "uvicorn==0.47.0",
 ]
 
 [dependency-groups]
 test = [
-    "pytest==8.2.2",
+    "pytest==9.0.3",
+    "httpx==0.28.1",
 ]
 lint = [
-    "ruff==0.15.12",
-    "pre-commit==3.7.1",
+    "ruff==0.15.13",
+    "pre-commit==4.6.0",
 ]
 
 [tool.ruff]
@@ -43,6 +44,20 @@ skip-magic-trailing-comma = false
 
 [tool.ruff.lint]
 select = ["ALL"]
+ignore = [
+    "COM812",  # Conflicts with formatter
+    "ISC001",  # Conflicts with formatter
+    "D203",    # Incompatible with D211
+    "D212",    # Incompatible with D213
+    "D100",    # Missing docstring in public module
+    "D104",    # Missing docstring in public package
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+    "S101",     # Use of assert detected (standard in pytest)
+    "PLR2004",  # Magic value used in comparison
+]
 
 [tool.ruff.lint.isort]
 known-first-party = [
