@@ -6,7 +6,7 @@
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-The project goal is to extract payload attack data from a [T-Pot](https://github.com/telekom-security/tpotce) or a cluster of them, and to serve it as a standalone service interacting with GreedyBear. This project is developed independently alongside T-Pot to provide modular payload handling capabilities.
+The project goal is to extract payload attack data from a [T-Pot](https://github.com/telekom-security/tpotce) or a cluster of them, and to serve it as a standalone service interacting with GreedyBear. This is a project or plugin developed openly and independently of the T-Pot project to provide modular payload handling capabilities.
 
 ## How to ...
 - **... try it out**: details on running the Docker container alongside T-Pot will be provided soon.
