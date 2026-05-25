@@ -51,7 +51,6 @@ ignore = [
     "D100",    # Missing docstring in public module
     "D104",    # Missing docstring in public package
     "S324",    # Probable use of insecure hash functions (used for malware identification)
-    "BLE001",  # Do not catch blind exception `Exception`
 ]
 
 [tool.ruff.lint.pydocstyle]

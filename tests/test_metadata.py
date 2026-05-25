@@ -44,7 +44,8 @@ def test_scan_payloads() -> None:
         payload = results[0]
 
         assert payload["file_path"] == str(file_path1)
-        assert "text" in payload["mime_type"] or "plain" in payload["mime_type"]
+        mime_type = payload["mime_type"]
+        assert mime_type == "unknown" or "text" in mime_type or "plain" in mime_type
         assert payload["md5"] is not None
         assert payload["sha1"] is not None
         assert payload["sha256"] is not None

@@ -10,7 +10,9 @@ def compute_hashes(file_path: Path | str, chunk_size: int = 8192) -> dict[str, s
         chunk_size (int, optional): Size of the chunks to read. Defaults to 8192.
 
     Returns:
-        dict[str, str]: Dictionary containing the md5, sha1, and sha256 hashes.
+        dict[str, str]: A dictionary containing the ``md5``, ``sha1``, and
+        ``sha256`` hashes on success. Returns an empty dictionary if the
+        file cannot be opened or read due to an ``OSError``.
     """
     path = Path(file_path)
     md5 = hashlib.md5()
