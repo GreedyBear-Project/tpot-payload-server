@@ -1,5 +1,8 @@
 import hashlib
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def compute_hashes(file_path: Path | str, chunk_size: int = 8192) -> dict[str, str]:
@@ -26,6 +29,7 @@ def compute_hashes(file_path: Path | str, chunk_size: int = 8192) -> dict[str, s
                 sha1.update(chunk)
                 sha256.update(chunk)
     except OSError:
+        logger.exception("Failed to compute hashes for %s", path)
         return {}
 
     return {

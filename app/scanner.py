@@ -1,4 +1,3 @@
-import mimetypes
 import time
 from collections.abc import Generator
 from pathlib import Path
@@ -9,15 +8,13 @@ from app.hasher import compute_hashes
 
 
 def _get_mime_type(file_path: Path, mime: "magic.Magic | None") -> str:
-    """Helper to detect MIME type with a fallback to mimetypes."""
+    """Helper to detect MIME type strictly with python-magic."""
     if mime:
         try:
             return mime.from_file(str(file_path))
-        except Exception as e:
-            if type(e).__name__ == "MagicException":
-                return mimetypes.guess_type(str(file_path))[0] or "unknown"
-            raise
-    return mimetypes.guess_type(str(file_path))[0] or "unknown"
+        except magic.MagicException:
+            return "unknown"
+    return "unknown"
 
 
 def scan_payloads(directory: Path | str, max_age_seconds: int) -> Generator[dict]:
@@ -37,13 +34,8 @@ def scan_payloads(directory: Path | str, max_age_seconds: int) -> Generator[dict
 
     try:
         mime = magic.Magic(mime=True)
-    except (ImportError, TypeError):
+    except (ImportError, TypeError, magic.MagicException):
         mime = None
-    except Exception as e:
-        if type(e).__name__ == "MagicException":
-            mime = None
-        else:
-            raise
 
     for file_path in base_path.rglob("*"):
         if not file_path.is_file():
