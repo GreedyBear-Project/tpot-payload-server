@@ -18,6 +18,7 @@ def compute_hashes(file_path: Path | str, chunk_size: int = 8192) -> dict[str, s
         file cannot be opened or read due to an ``OSError``.
     """
     path = Path(file_path)
+    logger.debug("Computing hashes for %s", path)
     md5 = hashlib.md5()
     sha1 = hashlib.sha1()
     sha256 = hashlib.sha256()
@@ -32,8 +33,10 @@ def compute_hashes(file_path: Path | str, chunk_size: int = 8192) -> dict[str, s
         logger.exception("Failed to compute hashes for %s", path)
         return {}
 
-    return {
+    result = {
         "md5": md5.hexdigest(),
         "sha1": sha1.hexdigest(),
         "sha256": sha256.hexdigest(),
     }
+    logger.debug("Hashes computed for %s: SHA256=%s", path, result["sha256"])
+    return result
