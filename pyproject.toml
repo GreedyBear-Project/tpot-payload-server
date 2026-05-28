@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "fastapi==0.136.1",
+    "python-magic==0.4.27",
     "uvicorn==0.47.0",
 ]
 
@@ -58,6 +59,9 @@ convention = "google"
 "tests/*" = [
     "S101",     # Use of assert detected (standard in pytest)
     "PLR2004",  # Magic value used in comparison
+]
+"app/hasher.py" = [
+    "S324",     # Probable use of insecure hash functions (used for malware identification)
 ]
 
 [tool.ruff.lint.isort]
