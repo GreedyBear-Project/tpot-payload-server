@@ -7,7 +7,7 @@ requires-python = ">=3.14"
 dependencies = [
     "fastapi==0.136.1",
     "python-magic==0.4.27",
-    "uvicorn==0.47.0",
+    "uvicorn==0.48.0",
 ]
 
 [dependency-groups]
