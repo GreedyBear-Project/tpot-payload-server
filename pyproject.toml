@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "fastapi==0.136.3",
+    "pydantic-settings>=2.14.1",
     "python-magic==0.4.27",
     "uvicorn==0.48.0",
 ]
@@ -62,6 +63,9 @@ convention = "google"
 ]
 "app/hasher.py" = [
     "S324",     # Probable use of insecure hash functions (used for malware identification)
+]
+"app/routes.py" = [
+    "PLR2004",  # Magic value used in comparison (64 for SHA-256 length check)
 ]
 
 [tool.ruff.lint.isort]

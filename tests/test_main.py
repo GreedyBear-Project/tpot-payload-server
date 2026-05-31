@@ -1,3 +1,5 @@
+"""Tests for T-Pot Payload Server application."""
+
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -5,8 +7,8 @@ from app.main import app
 client = TestClient(app)
 
 
-def test_read_root() -> None:
-    """Test the GET / endpoint returns greeting message."""
-    response = client.get("/")
+def test_health_check() -> None:
+    """Test the GET /health endpoint returns status ok."""
+    response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"message": "Hello from T-Pot Payload Server"}
+    assert response.json() == {"status": "ok"}
