@@ -17,8 +17,10 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Copy dependency manifests first for layer caching
 COPY pyproject.toml uv.lock ./
 
-# Install production dependencies into a virtual environment
-RUN uv sync --frozen --no-dev --no-install-project
+# Install production dependencies into a virtual environment.
+# We target /app/.venv so console-script shebangs match the final image path.
+ENV UV_PROJECT_ENVIRONMENT=/app/.venv
+RUN uv sync --locked --no-dev --no-install-project
 
 # Copy the application source
 COPY app/ ./app/
@@ -42,7 +44,7 @@ RUN groupadd --gid 1000 appuser \
 WORKDIR /app
 
 # Copy the virtual environment and application from the builder stage
-COPY --from=builder /build/.venv /app/.venv
+COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /build/app /app/app
 
 # Ensure the venv's Python and binaries are on PATH

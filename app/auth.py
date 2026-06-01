@@ -7,6 +7,8 @@ empty or unset, authentication is disabled entirely.
 
 from __future__ import annotations
 
+import hmac
+
 from fastapi import HTTPException, Security, status
 from fastapi.security import APIKeyHeader
 
@@ -34,7 +36,7 @@ async def verify_api_key(
     if not API_KEY:
         return None
 
-    if not api_key or api_key != API_KEY:
+    if not api_key or not hmac.compare_digest(api_key, API_KEY):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid or missing API key",
