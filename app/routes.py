@@ -3,7 +3,7 @@
 Defines the ``/api/v1/payloads`` router with two endpoints:
 
 - ``GET /recent`` — metadata for recently modified honeypot payload files.
-- ``GET /{sha256}/download`` — raw binary download by SHA-256 hash.
+- ``GET /download/{sha256}`` — raw binary download by SHA-256 hash.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
 
 from app.auth import verify_api_key
-from app.config import DATA_BASE_DIR, HONEYPOT_DIRS
+from app.config import BASE_DATA_DIR, HONEYPOT_DIRS
 from app.hasher import compute_hashes
 from app.scanner import scan_payloads_by_range
 from app.schemas import PayloadMetadata
@@ -56,27 +56,36 @@ def list_recent_payloads(
     results: list[dict] = []
 
     for honeypot_subdir in HONEYPOT_DIRS:
-        scan_dir = Path(DATA_BASE_DIR) / honeypot_subdir
+        scan_dir = Path(BASE_DATA_DIR) / honeypot_subdir
         results.extend(
             scan_payloads_by_range(
                 directory=scan_dir,
                 start_ts=start_ts,
                 end_ts=end_ts,
-                base_dir=DATA_BASE_DIR,
+                base_dir=BASE_DATA_DIR,
             ),
         )
+
+    # Populate the hash→path cache so subsequent /download calls are O(1).
+    for payload in results:
+        _hash_path_cache[payload["sha256"]] = Path(payload["file_path"])
 
     logger.info("Found %d payloads in window [%s, %s]", len(results), start_ts, end_ts)
     return results
 
 
-def _find_file_by_sha256(sha256: str) -> Path | None:
-    """Walk all configured honeypot dirs and find the file matching *sha256*.
+# In-process cache mapping SHA-256 → file path, populated by /recent scans.
+# Validated with Path.exists() before use to guard against stale entries.
+_hash_path_cache: dict[str, Path] = {}
 
-    This performs a full scan because the service is stateless (no DB).
-    For the typical download use-case (GreedyBear fetches files one-by-one
-    after the ``/recent`` call), this is acceptable — the directory tree
-    was just scanned moments ago.
+
+def _find_file_by_sha256(sha256: str) -> Path | None:
+    """Look up a file by SHA-256, checking the cache first.
+
+    The cache is populated by ``list_recent_payloads``.  On a cache hit
+    the path is validated with ``Path.exists()`` to handle files that
+    were deleted since the last scan.  On a miss, falls back to a full
+    directory scan.
 
     Args:
         sha256: SHA-256 hex digest to search for.
@@ -84,8 +93,14 @@ def _find_file_by_sha256(sha256: str) -> Path | None:
     Returns:
         Path to the matching file, or ``None`` if not found.
     """
+    # Fast path: check cache
+    cached = _hash_path_cache.get(sha256)
+    if cached and cached.exists():
+        return cached
+
+    # Cache miss — fall back to full scan
     for honeypot_subdir in HONEYPOT_DIRS:
-        scan_dir = Path(DATA_BASE_DIR) / honeypot_subdir
+        scan_dir = Path(BASE_DATA_DIR) / honeypot_subdir
         if not scan_dir.is_dir():
             continue
         for file_path in scan_dir.rglob("*"):
@@ -93,12 +108,13 @@ def _find_file_by_sha256(sha256: str) -> Path | None:
                 continue
             hashes = compute_hashes(file_path)
             if hashes and hashes.get("sha256") == sha256:
+                _hash_path_cache[sha256] = file_path
                 return file_path
     return None
 
 
 @router.get(
-    "/{sha256}/download",
+    "/download/{sha256}",
     summary="Download a payload by SHA-256",
     description="Stream the raw bytes of a payload file identified by its SHA-256 hash.",
     responses={
@@ -127,6 +143,14 @@ def download_payload(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Invalid SHA-256 hash — must be exactly 64 hex characters",
         )
+
+    try:
+        int(sha256, 16)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Invalid SHA-256 hash — must contain only hex characters",
+        ) from None
 
     file_path = _find_file_by_sha256(sha256)
     if file_path is None:

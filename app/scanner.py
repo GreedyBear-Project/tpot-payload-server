@@ -45,7 +45,9 @@ def derive_source_honeypot(file_path: str, base_dir: str) -> str:
     try:
         relative = Path(file_path).relative_to(base_dir)
         parts = relative.parts
-        if parts:
+        # Expected shape: <honeypot>/<...>/<filename> (at least 2 parts)
+        _min_depth = 2
+        if len(parts) >= _min_depth:
             return parts[0]
     except ValueError:
         logger.warning("Cannot derive source honeypot: %s is not under %s", file_path, base_dir)

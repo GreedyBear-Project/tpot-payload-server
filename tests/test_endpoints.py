@@ -66,7 +66,7 @@ class TestListRecentPayloads:
             now = time.time()
 
             with (
-                patch("app.routes.DATA_BASE_DIR", td),
+                patch("app.routes.BASE_DATA_DIR", td),
                 patch("app.routes.HONEYPOT_DIRS", ["dionaea/binaries", "cowrie/downloads"]),
                 patch("app.scanner.magic.Magic", side_effect=magic.MagicException("no libmagic")),
             ):
@@ -91,7 +91,7 @@ class TestListRecentPayloads:
             _create_payload_tree(Path(td))
 
             with (
-                patch("app.routes.DATA_BASE_DIR", td),
+                patch("app.routes.BASE_DATA_DIR", td),
                 patch("app.routes.HONEYPOT_DIRS", ["dionaea/binaries", "cowrie/downloads"]),
             ):
                 # Window far in the past
@@ -118,12 +118,12 @@ class TestListRecentPayloads:
 
 
 # ---------------------------------------------------------------------------
-# /api/v1/payloads/{sha256}/download
+# /api/v1/payloads/download/{sha256}
 # ---------------------------------------------------------------------------
 
 
 class TestDownloadPayload:
-    """Tests for GET /api/v1/payloads/{sha256}/download."""
+    """Tests for GET /api/v1/payloads/download/{sha256}."""
 
     def test_download_existing_file(self) -> None:
         """Downloading by a valid SHA-256 should return the file bytes."""
@@ -133,7 +133,7 @@ class TestDownloadPayload:
             # First, get the SHA-256 of the recent file via the /recent endpoint
             now = time.time()
             with (
-                patch("app.routes.DATA_BASE_DIR", td),
+                patch("app.routes.BASE_DATA_DIR", td),
                 patch("app.routes.HONEYPOT_DIRS", ["dionaea/binaries", "cowrie/downloads"]),
                 patch("app.scanner.magic.Magic", side_effect=magic.MagicException("no libmagic")),
             ):
@@ -146,10 +146,10 @@ class TestDownloadPayload:
 
             # Now download it
             with (
-                patch("app.routes.DATA_BASE_DIR", td),
+                patch("app.routes.BASE_DATA_DIR", td),
                 patch("app.routes.HONEYPOT_DIRS", ["dionaea/binaries", "cowrie/downloads"]),
             ):
-                download_resp = client.get(f"/api/v1/payloads/{sha256}/download")
+                download_resp = client.get(f"/api/v1/payloads/download/{sha256}")
 
             assert download_resp.status_code == 200
             assert download_resp.content == b"malicious ELF content for testing"
@@ -161,16 +161,22 @@ class TestDownloadPayload:
         with tempfile.TemporaryDirectory() as td:
             _create_payload_tree(Path(td))
             with (
-                patch("app.routes.DATA_BASE_DIR", td),
+                patch("app.routes.BASE_DATA_DIR", td),
                 patch("app.routes.HONEYPOT_DIRS", ["dionaea/binaries", "cowrie/downloads"]),
             ):
-                response = client.get(f"/api/v1/payloads/{fake_sha256}/download")
+                response = client.get(f"/api/v1/payloads/download/{fake_sha256}")
 
         assert response.status_code == 404
 
     def test_download_invalid_sha256_length_returns_422(self) -> None:
         """A SHA-256 that isn't 64 chars should be rejected."""
-        response = client.get("/api/v1/payloads/tooshort/download")
+        response = client.get("/api/v1/payloads/download/tooshort")
+        assert response.status_code == 422
+
+    def test_download_non_hex_sha256_returns_422(self) -> None:
+        """A 64-char string that isn't valid hex should be rejected."""
+        non_hex = "z" * 64
+        response = client.get(f"/api/v1/payloads/download/{non_hex}")
         assert response.status_code == 422
 
     def test_download_content_disposition_header(self) -> None:
@@ -180,7 +186,7 @@ class TestDownloadPayload:
 
             now = time.time()
             with (
-                patch("app.routes.DATA_BASE_DIR", td),
+                patch("app.routes.BASE_DATA_DIR", td),
                 patch("app.routes.HONEYPOT_DIRS", ["dionaea/binaries"]),
                 patch("app.scanner.magic.Magic", side_effect=magic.MagicException("no libmagic")),
             ):
@@ -192,10 +198,10 @@ class TestDownloadPayload:
             sha256 = list_resp.json()[0]["sha256"]
 
             with (
-                patch("app.routes.DATA_BASE_DIR", td),
+                patch("app.routes.BASE_DATA_DIR", td),
                 patch("app.routes.HONEYPOT_DIRS", ["dionaea/binaries"]),
             ):
-                resp = client.get(f"/api/v1/payloads/{sha256}/download")
+                resp = client.get(f"/api/v1/payloads/download/{sha256}")
 
             assert resp.status_code == 200
             assert f"{sha256}.bin" in resp.headers.get("content-disposition", "")
@@ -221,7 +227,7 @@ class TestRecentResponseSchema:
             now = time.time()
 
             with (
-                patch("app.routes.DATA_BASE_DIR", td),
+                patch("app.routes.BASE_DATA_DIR", td),
                 patch("app.routes.HONEYPOT_DIRS", ["dionaea/binaries"]),
                 patch("app.scanner.magic.Magic", side_effect=magic.MagicException("no libmagic")),
             ):
@@ -248,7 +254,7 @@ class TestRecentResponseSchema:
 
             now = time.time()
             with (
-                patch("app.routes.DATA_BASE_DIR", td),
+                patch("app.routes.BASE_DATA_DIR", td),
                 patch("app.routes.HONEYPOT_DIRS", ["dionaea/binaries", "cowrie/downloads"]),
                 patch("app.scanner.magic.Magic", side_effect=magic.MagicException("no libmagic")),
             ):
@@ -295,7 +301,7 @@ class TestApiKeyAuth:
         with (
             tempfile.TemporaryDirectory() as td,
             patch("app.auth.API_KEY", "test-secret-key"),
-            patch("app.routes.DATA_BASE_DIR", td),
+            patch("app.routes.BASE_DATA_DIR", td),
             patch("app.routes.HONEYPOT_DIRS", []),
         ):
             response = client.get(
@@ -310,7 +316,7 @@ class TestApiKeyAuth:
         with (
             tempfile.TemporaryDirectory() as td,
             patch("app.auth.API_KEY", ""),
-            patch("app.routes.DATA_BASE_DIR", td),
+            patch("app.routes.BASE_DATA_DIR", td),
             patch("app.routes.HONEYPOT_DIRS", []),
         ):
             response = client.get(
@@ -323,7 +329,7 @@ class TestApiKeyAuth:
         """The /download endpoint should also enforce API key auth."""
         fake_sha256 = "b" * 64
         with patch("app.auth.API_KEY", "test-secret-key"):
-            response = client.get(f"/api/v1/payloads/{fake_sha256}/download")
+            response = client.get(f"/api/v1/payloads/download/{fake_sha256}")
         assert response.status_code == 403
 
     def test_download_accepts_correct_key(self) -> None:
@@ -332,11 +338,11 @@ class TestApiKeyAuth:
         with (
             tempfile.TemporaryDirectory() as td,
             patch("app.auth.API_KEY", "test-secret-key"),
-            patch("app.routes.DATA_BASE_DIR", td),
+            patch("app.routes.BASE_DATA_DIR", td),
             patch("app.routes.HONEYPOT_DIRS", []),
         ):
             response = client.get(
-                f"/api/v1/payloads/{fake_sha256}/download",
+                f"/api/v1/payloads/download/{fake_sha256}",
                 headers={"X-API-Key": "test-secret-key"},
             )
         # 404 is expected (file doesn't exist), but NOT 403

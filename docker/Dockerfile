@@ -12,7 +12,7 @@ FROM python:3.14-slim AS builder
 WORKDIR /build
 
 # Install uv for fast, reproducible dependency resolution
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.11.18 /uv /usr/local/bin/uv
 
 # Copy dependency manifests first for layer caching
 COPY pyproject.toml uv.lock ./
@@ -52,7 +52,7 @@ ENV PATH="/app/.venv/bin:$PATH"
 ENV VIRTUAL_ENV="/app/.venv"
 
 # Application defaults (overridable at runtime)
-ENV DATA_BASE_DIR="/data"
+ENV BASE_DATA_DIR="/data"
 ENV HONEYPOT_DIRS="dionaea/binaries,cowrie/downloads,honeytrap/downloads,adbhoney/downloads"
 ENV API_KEY=""
 

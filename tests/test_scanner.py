@@ -39,12 +39,9 @@ class TestDeriveSourceHoneypot:
         assert result == "unknown"
 
     def test_returns_unknown_for_file_directly_in_base(self) -> None:
-        """A file at the base dir root has no honeypot parent — edge case."""
-        # Path("/data/file.bin").relative_to("/data") → ("file.bin",)
-        # parts[0] is the filename, which is technically returned.
-        # This documents the current behavior.
+        """A file directly under base_dir has no honeypot parent — should return 'unknown'."""
         result = derive_source_honeypot("/data/file.bin", "/data")
-        assert result == "file.bin"
+        assert result == "unknown"
 
 
 class TestGetMimeTypeEdgeCases:
