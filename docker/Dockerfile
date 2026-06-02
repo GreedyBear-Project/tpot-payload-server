@@ -32,9 +32,9 @@ FROM python:3.14-slim
 LABEL maintainer="GreedyBear-Project"
 LABEL description="Stateless FastAPI service to serve T-Pot honeypot payloads"
 
-# libmagic1 is the runtime dependency for python-magic
+# libmagic1 is the runtime dependency for python-magic; curl is for health checking
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libmagic1 \
+    && apt-get install -y --no-install-recommends libmagic1 curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user
