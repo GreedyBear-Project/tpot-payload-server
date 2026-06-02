@@ -13,7 +13,6 @@ class PayloadMetadata(BaseModel):
     """Metadata extracted from a single honeypot payload file.
 
     Attributes:
-        file_path: Absolute path to the file inside the container.
         mime_type: MIME type detected by python-magic.
         md5: MD5 hex digest.
         sha1: SHA-1 hex digest.
@@ -23,7 +22,6 @@ class PayloadMetadata(BaseModel):
         source_honeypot: Honeypot name derived from the file path.
     """
 
-    file_path: str
     mime_type: str
     md5: str
     sha1: str

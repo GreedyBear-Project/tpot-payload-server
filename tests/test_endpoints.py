@@ -213,7 +213,6 @@ class TestRecentResponseSchema:
     def test_response_contains_all_required_fields(self) -> None:
         """Each payload in the response should have all PayloadMetadata fields."""
         required_fields = {
-            "file_path",
             "mime_type",
             "md5",
             "sha1",
