@@ -54,6 +54,54 @@ def derive_source_honeypot(file_path: str, base_dir: str) -> str:
     return "unknown"
 
 
+def _init_magic() -> magic.Magic | None:
+    """Helper to initialize python-magic safely."""
+    try:
+        return magic.Magic(mime=True)
+    except (ImportError, TypeError, magic.MagicException):
+        logger.warning("python-magic initialization failed; MIME types will be 'unknown'")
+        return None
+
+
+def _scan_files(directory: Path | str) -> Generator[tuple[Path, float, int]]:
+    """Helper to recursively scan a directory for files, handling OSErrors."""
+    base_path = Path(directory)
+    if not base_path.is_dir():
+        logger.warning("Directory does not exist: %s", base_path)
+        return
+
+    for file_path in base_path.rglob("*"):
+        if not file_path.is_file():
+            continue
+        try:
+            stat_result = file_path.stat()
+            yield file_path, stat_result.st_mtime, stat_result.st_size
+        except OSError:
+            logger.exception("Failed to process %s", file_path)
+
+
+def _extract_metadata(
+    file_path: Path,
+    mtime: float,
+    size: int,
+    mime: magic.Magic | None,
+) -> dict | None:
+    """Helper to compute hashes and assemble base metadata."""
+    hashes = compute_hashes(file_path)
+    if not hashes:
+        return None
+
+    return {
+        "file_path": str(file_path),
+        "mime_type": _get_mime_type(file_path, mime),
+        "md5": hashes.get("md5"),
+        "sha1": hashes.get("sha1"),
+        "sha256": hashes.get("sha256"),
+        "mtime": mtime,
+        "size": size,
+    }
+
+
 def scan_payloads(directory: Path | str, max_age_seconds: int) -> Generator[dict]:
     """Scan a directory recursively for files modified within the last max_age_seconds.
 
@@ -66,44 +114,16 @@ def scan_payloads(directory: Path | str, max_age_seconds: int) -> Generator[dict
     Yields:
         dict: A dictionary containing file metadata like path, mime_type, hashes, etc.
     """
+    mime = _init_magic()
     current_time = time.time()
-    base_path = Path(directory)
 
-    try:
-        mime = magic.Magic(mime=True)
-    except (ImportError, TypeError, magic.MagicException):
-        logger.warning("python-magic initialization failed; MIME types will be 'unknown'")
-        mime = None
+    logger.info("Scanning %s for payloads modified within %d seconds", directory, max_age_seconds)
 
-    logger.info("Scanning %s for payloads modified within %d seconds", base_path, max_age_seconds)
-
-    for file_path in base_path.rglob("*"):
-        if not file_path.is_file():
-            continue
-
-        try:
-            stat_result = file_path.stat()
-            mtime = stat_result.st_mtime
-
-            if (current_time - mtime) <= max_age_seconds:
-                mime_type = _get_mime_type(file_path, mime)
-
-                hashes = compute_hashes(file_path)
-                if not hashes:
-                    continue
-
-                yield {
-                    "file_path": str(file_path),
-                    "mime_type": mime_type,
-                    "md5": hashes.get("md5"),
-                    "sha1": hashes.get("sha1"),
-                    "sha256": hashes.get("sha256"),
-                    "mtime": mtime,
-                    "size": stat_result.st_size,
-                }
-        except OSError:
-            logger.exception("Failed to process %s", file_path)
-            continue
+    for file_path, mtime, size in _scan_files(directory):
+        if (current_time - mtime) <= max_age_seconds:
+            meta = _extract_metadata(file_path, mtime, size, mime)
+            if meta:
+                yield meta
 
 
 def scan_payloads_by_range(
@@ -128,53 +148,21 @@ def scan_payloads_by_range(
     Yields:
         dict: Payload metadata including ``source_honeypot``.
     """
-    base_path = Path(directory)
-
-    if not base_path.is_dir():
-        logger.warning("Directory does not exist: %s", base_path)
-        return
-
-    try:
-        mime = magic.Magic(mime=True)
-    except (ImportError, TypeError, magic.MagicException):
-        logger.warning("python-magic initialization failed; MIME types will be 'unknown'")
-        mime = None
+    mime = _init_magic()
 
     logger.info(
         "Scanning %s for payloads with mtime in [%s, %s]",
-        base_path,
+        directory,
         start_ts,
         end_ts,
     )
 
-    for file_path in base_path.rglob("*"):
-        if not file_path.is_file():
-            continue
-
-        try:
-            stat_result = file_path.stat()
-            mtime = stat_result.st_mtime
-
-            if start_ts <= mtime <= end_ts:
-                mime_type = _get_mime_type(file_path, mime)
-
-                hashes = compute_hashes(file_path)
-                if not hashes:
-                    continue
-
-                yield {
-                    "file_path": str(file_path),
-                    "mime_type": mime_type,
-                    "md5": hashes.get("md5"),
-                    "sha1": hashes.get("sha1"),
-                    "sha256": hashes.get("sha256"),
-                    "mtime": mtime,
-                    "size": stat_result.st_size,
-                    "source_honeypot": derive_source_honeypot(
-                        str(file_path),
-                        base_dir,
-                    ),
-                }
-        except OSError:
-            logger.exception("Failed to process %s", file_path)
-            continue
+    for file_path, mtime, size in _scan_files(directory):
+        if start_ts <= mtime <= end_ts:
+            meta = _extract_metadata(file_path, mtime, size, mime)
+            if meta:
+                meta["source_honeypot"] = derive_source_honeypot(
+                    str(file_path),
+                    base_dir,
+                )
+                yield meta
