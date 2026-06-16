@@ -165,4 +165,9 @@ def scan_payloads_by_range(
                     str(file_path),
                     base_dir,
                 )
+                # Relative path from base_dir for deterministic download resolution.
+                try:
+                    meta["locator"] = str(Path(file_path).relative_to(base_dir))
+                except ValueError:
+                    meta["locator"] = file_path.name
                 yield meta

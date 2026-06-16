@@ -13,6 +13,8 @@ class PayloadMetadata(BaseModel):
     """Metadata extracted from a single honeypot payload file.
 
     Attributes:
+        locator: Relative path from the data root to the file, used by
+            the ``/download`` endpoint for deterministic O(1) resolution.
         mime_type: MIME type detected by python-magic.
         md5: MD5 hex digest.
         sha1: SHA-1 hex digest.
@@ -22,6 +24,7 @@ class PayloadMetadata(BaseModel):
         source_honeypot: Honeypot name derived from the file path.
     """
 
+    locator: str
     mime_type: str
     md5: str
     sha1: str

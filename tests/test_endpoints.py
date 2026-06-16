@@ -84,6 +84,7 @@ class TestListRecentPayloads:
             assert len(payload["sha256"]) == 64
             assert payload["source_honeypot"] == "dionaea"
             assert payload["size"] > 0
+            assert payload["locator"] == "dionaea/binaries/sample.bin"
 
     def test_empty_window_returns_empty_list(self) -> None:
         """A time window in the past with no matching files returns []."""
@@ -118,76 +119,75 @@ class TestListRecentPayloads:
 
 
 # ---------------------------------------------------------------------------
-# /api/v1/payloads/download/{sha256}
+# /api/v1/payloads/download/{locator:path}
 # ---------------------------------------------------------------------------
 
 
 class TestDownloadPayload:
-    """Tests for GET /api/v1/payloads/download/{sha256}."""
+    """Tests for GET /api/v1/payloads/download/{locator}."""
 
     def test_download_existing_file(self) -> None:
-        """Downloading by a valid SHA-256 should return the file bytes."""
+        """Downloading by a valid locator should return the file bytes."""
         with tempfile.TemporaryDirectory() as td:
             _create_payload_tree(Path(td))
 
-            # First, get the SHA-256 of the recent file via the /recent endpoint
-            now = time.time()
-            with (
-                patch("app.routes.BASE_DATA_DIR", td),
-                patch("app.routes.HONEYPOT_DIRS", ["dionaea/binaries", "cowrie/downloads"]),
-                patch("app.scanner.magic.Magic", side_effect=magic.MagicException("no libmagic")),
-            ):
-                list_resp = client.get(
-                    "/api/v1/payloads/recent",
-                    params={"start_ts": now - 60, "end_ts": now + 60},
+            with patch("app.routes.BASE_DATA_DIR", td):
+                download_resp = client.get(
+                    "/api/v1/payloads/download/dionaea/binaries/sample.bin",
                 )
-
-            sha256 = list_resp.json()[0]["sha256"]
-
-            # Now download it
-            with (
-                patch("app.routes.BASE_DATA_DIR", td),
-                patch("app.routes.HONEYPOT_DIRS", ["dionaea/binaries", "cowrie/downloads"]),
-            ):
-                download_resp = client.get(f"/api/v1/payloads/download/{sha256}")
 
             assert download_resp.status_code == 200
             assert download_resp.content == b"malicious ELF content for testing"
             assert download_resp.headers["content-type"] == "application/octet-stream"
 
-    def test_download_nonexistent_sha256_returns_404(self) -> None:
-        """Requesting a SHA-256 that doesn't match any file should return 404."""
-        fake_sha256 = "a" * 64
+    def test_download_nonexistent_locator_returns_404(self) -> None:
+        """Requesting a locator that doesn't match any file should return 404."""
         with tempfile.TemporaryDirectory() as td:
             _create_payload_tree(Path(td))
-            with (
-                patch("app.routes.BASE_DATA_DIR", td),
-                patch("app.routes.HONEYPOT_DIRS", ["dionaea/binaries", "cowrie/downloads"]),
-            ):
-                response = client.get(f"/api/v1/payloads/download/{fake_sha256}")
+            with patch("app.routes.BASE_DATA_DIR", td):
+                response = client.get(
+                    "/api/v1/payloads/download/dionaea/binaries/nonexistent.bin",
+                )
 
         assert response.status_code == 404
 
-    def test_download_invalid_sha256_length_returns_422(self) -> None:
-        """A SHA-256 that isn't 64 chars should be rejected."""
-        response = client.get("/api/v1/payloads/download/tooshort")
-        assert response.status_code == 422
+    def test_download_path_traversal_returns_422(self) -> None:
+        """A locator attempting path traversal should be rejected with 422."""
+        with (
+            tempfile.TemporaryDirectory() as td,
+            patch("app.routes.BASE_DATA_DIR", td),
+        ):
+            # Use URL-encoded dots (%2e) to bypass HTTP client normalization.
+            # This is the realistic attack vector.
+            response = client.get(
+                "/api/v1/payloads/download/%2e%2e/%2e%2e/etc/passwd",
+            )
 
-    def test_download_non_hex_sha256_returns_422(self) -> None:
-        """A 64-char string that isn't valid hex should be rejected."""
-        non_hex = "z" * 64
-        response = client.get(f"/api/v1/payloads/download/{non_hex}")
         assert response.status_code == 422
+        assert "path traversal" in response.json()["detail"].lower()
 
     def test_download_content_disposition_header(self) -> None:
-        """Download response should include a Content-Disposition header with .bin filename."""
+        """Download response should include a Content-Disposition header with the filename."""
         with tempfile.TemporaryDirectory() as td:
             _create_payload_tree(Path(td))
 
+            with patch("app.routes.BASE_DATA_DIR", td):
+                resp = client.get(
+                    "/api/v1/payloads/download/dionaea/binaries/sample.bin",
+                )
+
+            assert resp.status_code == 200
+            assert "sample.bin" in resp.headers.get("content-disposition", "")
+
+    def test_download_roundtrip_with_recent(self) -> None:
+        """Locator from /recent should work directly with /download."""
+        with tempfile.TemporaryDirectory() as td:
+            _create_payload_tree(Path(td))
             now = time.time()
+
             with (
                 patch("app.routes.BASE_DATA_DIR", td),
-                patch("app.routes.HONEYPOT_DIRS", ["dionaea/binaries"]),
+                patch("app.routes.HONEYPOT_DIRS", ["dionaea/binaries", "cowrie/downloads"]),
                 patch("app.scanner.magic.Magic", side_effect=magic.MagicException("no libmagic")),
             ):
                 list_resp = client.get(
@@ -195,16 +195,13 @@ class TestDownloadPayload:
                     params={"start_ts": now - 60, "end_ts": now + 60},
                 )
 
-            sha256 = list_resp.json()[0]["sha256"]
+            locator = list_resp.json()[0]["locator"]
 
-            with (
-                patch("app.routes.BASE_DATA_DIR", td),
-                patch("app.routes.HONEYPOT_DIRS", ["dionaea/binaries"]),
-            ):
-                resp = client.get(f"/api/v1/payloads/download/{sha256}")
+            with patch("app.routes.BASE_DATA_DIR", td):
+                download_resp = client.get(f"/api/v1/payloads/download/{locator}")
 
-            assert resp.status_code == 200
-            assert f"{sha256}.bin" in resp.headers.get("content-disposition", "")
+            assert download_resp.status_code == 200
+            assert download_resp.content == b"malicious ELF content for testing"
 
 
 class TestRecentResponseSchema:
@@ -213,6 +210,7 @@ class TestRecentResponseSchema:
     def test_response_contains_all_required_fields(self) -> None:
         """Each payload in the response should have all PayloadMetadata fields."""
         required_fields = {
+            "locator",
             "mime_type",
             "md5",
             "sha1",
@@ -326,22 +324,19 @@ class TestApiKeyAuth:
 
     def test_download_rejects_missing_key(self) -> None:
         """The /download endpoint should also enforce API key auth."""
-        fake_sha256 = "b" * 64
         with patch("app.auth.API_KEY", "test-secret-key"):
-            response = client.get(f"/api/v1/payloads/download/{fake_sha256}")
+            response = client.get("/api/v1/payloads/download/dionaea/binaries/sample.bin")
         assert response.status_code == 403
 
     def test_download_accepts_correct_key(self) -> None:
         """The /download endpoint should accept a valid API key."""
-        fake_sha256 = "b" * 64
         with (
             tempfile.TemporaryDirectory() as td,
             patch("app.auth.API_KEY", "test-secret-key"),
             patch("app.routes.BASE_DATA_DIR", td),
-            patch("app.routes.HONEYPOT_DIRS", []),
         ):
             response = client.get(
-                f"/api/v1/payloads/download/{fake_sha256}",
+                "/api/v1/payloads/download/dionaea/binaries/sample.bin",
                 headers={"X-API-Key": "test-secret-key"},
             )
         # 404 is expected (file doesn't exist), but NOT 403

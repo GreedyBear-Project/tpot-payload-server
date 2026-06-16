@@ -3,7 +3,7 @@
 Defines the ``/api/v1/payloads`` router with two endpoints:
 
 - ``GET /recent`` — metadata for recently modified honeypot payload files.
-- ``GET /download/{sha256}`` — raw binary download by SHA-256 hash.
+- ``GET /download/{locator:path}`` — raw binary download by relative locator.
 """
 
 from __future__ import annotations
@@ -17,7 +17,6 @@ from fastapi.responses import FileResponse
 
 from app.auth import verify_api_key
 from app.config import BASE_DATA_DIR, HONEYPOT_DIRS
-from app.hasher import compute_hashes
 from app.scanner import scan_payloads_by_range
 from app.schemas import PayloadMetadata
 
@@ -66,101 +65,76 @@ def list_recent_payloads(
             ),
         )
 
-    # Populate the hash→path cache so subsequent /download calls are O(1).
-    for payload in results:
-        _hash_path_cache[payload["sha256"]] = Path(payload["file_path"])
-
     logger.info("Found %d payloads in window [%s, %s]", len(results), start_ts, end_ts)
     return results
 
 
-# In-process cache mapping SHA-256 → file path, populated by /recent scans.
-# Validated with Path.exists() before use to guard against stale entries.
-_hash_path_cache: dict[str, Path] = {}
-
-
-def _find_file_by_sha256(sha256: str) -> Path | None:
-    """Look up a file by SHA-256, checking the cache first.
-
-    The cache is populated by ``list_recent_payloads``.  On a cache hit
-    the path is validated with ``Path.exists()`` to handle files that
-    were deleted since the last scan.  On a miss, falls back to a full
-    directory scan.
+def _resolve_locator(locator: str) -> Path:
+    """Resolve a relative locator to an absolute path, guarding against traversal.
 
     Args:
-        sha256: SHA-256 hex digest to search for.
+        locator: Relative path from ``BASE_DATA_DIR`` (e.g. ``dionaea/binaries/sample.bin``).
 
     Returns:
-        Path to the matching file, or ``None`` if not found.
-    """
-    # Fast path: check cache
-    cached = _hash_path_cache.get(sha256)
-    if cached and cached.exists():
-        return cached
+        Resolved absolute ``Path`` to the file.
 
-    # Cache miss — fall back to full scan
-    for honeypot_subdir in HONEYPOT_DIRS:
-        scan_dir = Path(BASE_DATA_DIR) / honeypot_subdir
-        if not scan_dir.is_dir():
-            continue
-        for file_path in scan_dir.rglob("*"):
-            if not file_path.is_file():
-                continue
-            hashes = compute_hashes(file_path)
-            if hashes and hashes.get("sha256") == sha256:
-                _hash_path_cache[sha256] = file_path
-                return file_path
-    return None
+    Raises:
+        HTTPException: 422 if the locator attempts path traversal.
+        HTTPException: 404 if the resolved path does not exist or is not a file.
+    """
+    base = Path(BASE_DATA_DIR).resolve()
+    resolved = (base / locator).resolve()
+
+    # Guard: resolved path must be under BASE_DATA_DIR
+    if not resolved.is_relative_to(base):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Invalid locator — path traversal detected",
+        )
+
+    if not resolved.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No payload found at locator: {locator}",
+        )
+
+    return resolved
 
 
 @router.get(
-    "/download/{sha256}",
-    summary="Download a payload by SHA-256",
-    description="Stream the raw bytes of a payload file identified by its SHA-256 hash.",
+    "/download/{locator:path}",
+    summary="Download a payload by locator",
+    description=("Stream the raw bytes of a payload file identified by its relative locator (returned by the /recent endpoint)."),
     responses={
         200: {"content": {"application/octet-stream": {}}},
         404: {"description": "Payload not found"},
+        422: {"description": "Invalid locator"},
     },
 )
 def download_payload(
-    sha256: str,
+    locator: str,
     _api_key: Annotated[str | None, Depends(verify_api_key)],
 ) -> FileResponse:
-    """Stream the raw bytes of a payload identified by its SHA-256 hash.
+    """Stream the raw bytes of a payload identified by its relative locator.
+
+    The locator is the relative path from ``BASE_DATA_DIR`` to the file,
+    as returned by the ``/recent`` endpoint's ``locator`` field.
 
     Args:
-        sha256: SHA-256 hex digest of the requested file.
+        locator: Relative file path (e.g. ``dionaea/binaries/sample.bin``).
         _api_key: Injected by the auth dependency; unused in logic.
 
     Returns:
         A streaming file response with ``application/octet-stream`` content type.
 
     Raises:
-        HTTPException: 404 if no file with the given SHA-256 exists.
+        HTTPException: 422 if the locator attempts path traversal.
+        HTTPException: 404 if no file exists at the resolved path.
     """
-    if len(sha256) != 64:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Invalid SHA-256 hash — must be exactly 64 hex characters",
-        )
-
-    try:
-        int(sha256, 16)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Invalid SHA-256 hash — must contain only hex characters",
-        ) from None
-
-    file_path = _find_file_by_sha256(sha256)
-    if file_path is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No payload found with SHA-256: {sha256}",
-        )
+    file_path = _resolve_locator(locator)
 
     return FileResponse(
         path=str(file_path),
         media_type="application/octet-stream",
-        filename=f"{sha256}.bin",
+        filename=file_path.name,
     )
