@@ -164,7 +164,7 @@ class TestDownloadPayload:
             )
 
         assert response.status_code == 422
-        assert "path traversal" in response.json()["detail"].lower()
+        assert "traversal" in response.json()["detail"].lower()
 
     def test_download_absolute_path_returns_422(self) -> None:
         """A locator with an absolute path should be rejected with 422."""

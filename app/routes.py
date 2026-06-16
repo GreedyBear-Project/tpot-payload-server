@@ -94,8 +94,13 @@ def _resolve_locator(locator: str) -> Path:
             detail="Invalid locator — absolute paths are not allowed",
         )
 
-    # Layer 2: allowlist each path segment to prevent sneaky characters.
+    # Layer 2: allowlist each path segment and explicitly reject '.' and '..'.
     for segment in locator_path.parts:
+        if segment in (".", ".."):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Invalid locator — directory traversal components are not allowed",
+            )
         if not _SAFE_LOCATOR_SEGMENT.match(segment):
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
