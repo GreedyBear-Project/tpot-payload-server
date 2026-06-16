@@ -166,6 +166,36 @@ class TestDownloadPayload:
         assert response.status_code == 422
         assert "path traversal" in response.json()["detail"].lower()
 
+    def test_download_absolute_path_returns_422(self) -> None:
+        """A locator with an absolute path should be rejected with 422."""
+        with (
+            tempfile.TemporaryDirectory() as td,
+            patch("app.routes.BASE_DATA_DIR", td),
+        ):
+            response = client.get(
+                "/api/v1/payloads/download/%2fetc%2fpasswd",
+            )
+
+        assert response.status_code == 422
+        assert "absolute" in response.json()["detail"].lower()
+
+    def test_download_symlink_escape_returns_422(self) -> None:
+        """A symlink inside BASE_DATA_DIR pointing outside should be rejected."""
+        with tempfile.TemporaryDirectory() as td:
+            # Create a symlink inside the data dir that points to /etc/passwd
+            link_dir = Path(td) / "dionaea" / "binaries"
+            link_dir.mkdir(parents=True)
+            symlink = link_dir / "evil_link"
+            symlink.symlink_to("/etc/passwd")
+
+            with patch("app.routes.BASE_DATA_DIR", td):
+                response = client.get(
+                    "/api/v1/payloads/download/dionaea/binaries/evil_link",
+                )
+
+        assert response.status_code == 422
+        assert "path traversal" in response.json()["detail"].lower()
+
     def test_download_content_disposition_header(self) -> None:
         """Download response should include a Content-Disposition header with the filename."""
         with tempfile.TemporaryDirectory() as td:

@@ -83,9 +83,19 @@ def _resolve_locator(locator: str) -> Path:
         HTTPException: 404 if the resolved path does not exist or is not a file.
     """
     base = Path(BASE_DATA_DIR).resolve()
-    resolved = (base / locator).resolve()
 
-    # Guard: resolved path must be under BASE_DATA_DIR
+    # Layer 1: reject obviously malicious locators before constructing any path.
+    locator_path = Path(locator)
+    if locator_path.is_absolute():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Invalid locator — absolute paths are not allowed",
+        )
+
+    resolved = (base / locator_path).resolve()
+
+    # Layer 2: resolved path must still be under BASE_DATA_DIR
+    # (catches URL-encoded traversal like %2e%2e).
     if not resolved.is_relative_to(base):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
