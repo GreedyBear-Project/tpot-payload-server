@@ -9,6 +9,7 @@ Defines the ``/api/v1/payloads`` router with two endpoints:
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 from typing import Annotated
 
@@ -21,6 +22,7 @@ from app.scanner import scan_payloads_by_range
 from app.schemas import PayloadMetadata
 
 logger = logging.getLogger(__name__)
+_SAFE_LOCATOR_SEGMENT = re.compile(r"^[A-Za-z0-9._-]+$")
 
 router = APIRouter(prefix="/api/v1/payloads", tags=["payloads"])
 
@@ -92,10 +94,18 @@ def _resolve_locator(locator: str) -> Path:
             detail="Invalid locator — absolute paths are not allowed",
         )
 
+    # Layer 2: allowlist each path segment to prevent sneaky characters.
+    for segment in locator_path.parts:
+        if not _SAFE_LOCATOR_SEGMENT.match(segment):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Invalid locator — contains disallowed characters",
+            )
+
     resolved = (base / locator_path).resolve()
 
-    # Layer 2: resolved path must still be under BASE_DATA_DIR
-    # (catches URL-encoded traversal like %2e%2e).
+    # Layer 3: resolved path must still be under BASE_DATA_DIR
+    # (defense-in-depth against symlinks or encoding bypasses).
     if not resolved.is_relative_to(base):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
