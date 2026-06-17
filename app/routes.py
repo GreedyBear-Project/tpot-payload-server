@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -84,37 +84,40 @@ def _resolve_locator(locator: str) -> Path:
         HTTPException: 422 if the locator attempts path traversal.
         HTTPException: 404 if the resolved path does not exist or is not a file.
     """
-    base = Path(BASE_DATA_DIR).resolve()
-
-    # Layer 1: reject obviously malicious locators before constructing any path.
-    locator_path = Path(locator)
-    if locator_path.is_absolute():
+    parts = PurePosixPath(locator).parts
+    if not parts:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Invalid locator — absolute paths are not allowed",
+            detail="Invalid locator — empty path",
         )
 
-    # Layer 2: allowlist each path segment and explicitly reject '.' and '..'.
-    for segment in locator_path.parts:
-        if segment in (".", ".."):
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="Invalid locator — directory traversal components are not allowed",
-            )
-        if not _SAFE_LOCATOR_SEGMENT.match(segment):
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="Invalid locator — contains disallowed characters",
-            )
+    *dir_parts, filename = parts
+    requested_subdir = "/".join(dir_parts)
 
-    resolved = (base / locator_path).resolve()
+    # Sanitize directory by requiring an exact match against configured honeypots
+    subdir = next((d for d in HONEYPOT_DIRS if d == requested_subdir), None)
+    if subdir is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Invalid locator — directory is not a known honeypot path",
+        )
 
-    # Layer 3: resolved path must still be under BASE_DATA_DIR
-    # (defense-in-depth against symlinks or encoding bypasses).
+    # Sanitize filename to prevent directory traversal or special characters
+    if filename in (".", "..") or not _SAFE_LOCATOR_SEGMENT.match(filename):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Invalid locator — filename contains disallowed characters",
+        )
+
+    # Path construction is now decoupled from raw user input.
+    base = Path(BASE_DATA_DIR).resolve()
+    resolved = (base / subdir / filename).resolve()
+
+    # Defense-in-depth: Ensure we haven't followed a symlink outside the data directory
     if not resolved.is_relative_to(base):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Invalid locator — path traversal detected",
+            detail="Invalid locator — path traversal detected via symlink",
         )
 
     if not resolved.is_file():

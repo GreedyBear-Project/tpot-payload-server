@@ -1,15 +1,13 @@
 """Tests for T-Pot Payload Server hash computation and metadata extraction."""
 
-import os
 import tempfile
-import time
 from pathlib import Path
 from unittest.mock import patch
 
 import magic
 
 from app.hasher import compute_hashes
-from app.scanner import _get_mime_type, scan_payloads
+from app.scanner import _get_mime_type
 
 
 def test_compute_hashes() -> None:
@@ -43,47 +41,3 @@ def test_get_mime_type_magic_exception() -> None:
         result = _get_mime_type(Path("/some/file.bin"), mock_mime)
 
     assert result == "unknown"
-
-
-def test_scan_payloads_magic_init_failure() -> None:
-    """Test that scan_payloads degrades gracefully when magic.Magic() init fails."""
-    with tempfile.TemporaryDirectory() as td:
-        file_path = Path(td) / "payload.txt"
-        file_path.write_text("test content")
-
-        with patch("app.scanner.magic.Magic", side_effect=magic.MagicException("no magic")):
-            results = list(scan_payloads(td, 60))
-
-        assert len(results) == 1
-        assert results[0]["mime_type"] == "unknown"
-        assert results[0]["md5"] is not None
-
-
-def test_scan_payloads() -> None:
-    """Test the scanner filters out old files and extracts metadata correctly."""
-    with tempfile.TemporaryDirectory() as td:
-        file_path1 = Path(td) / "recent_payload.txt"
-        file_path2 = Path(td) / "old_payload.txt"
-
-        file_path1.write_text("recent payload content")
-
-        # Simulate an old file by changing its mtime to 1 hour ago
-        file_path2.write_text("old payload content")
-        old_time = time.time() - 3600
-        os.utime(file_path2, (old_time, old_time))
-
-        # Scan for payloads modified in the last 60 seconds
-        results = list(scan_payloads(td, 60))
-
-        # Should only find the recent payload
-        assert len(results) == 1
-        payload = results[0]
-
-        assert payload["file_path"] == str(file_path1)
-        mime_type = payload["mime_type"]
-        assert mime_type == "unknown" or "text" in mime_type or "plain" in mime_type
-        assert payload["md5"] is not None
-        assert payload["sha1"] is not None
-        assert payload["sha256"] is not None
-        assert payload["size"] > 0
-        assert payload["mtime"] > old_time

@@ -6,7 +6,6 @@ any sample.
 """
 
 import logging
-import time
 from collections.abc import Generator
 from pathlib import Path
 
@@ -100,30 +99,6 @@ def _extract_metadata(
         "mtime": mtime,
         "size": size,
     }
-
-
-def scan_payloads(directory: Path | str, max_age_seconds: int) -> Generator[dict]:
-    """Scan a directory recursively for files modified within the last max_age_seconds.
-
-    Extracts metadata (hashes, MIME types) without executing the files.
-
-    Args:
-        directory (Path | str): The directory path to scan.
-        max_age_seconds (int): The maximum age of the file in seconds to be included.
-
-    Yields:
-        dict: A dictionary containing file metadata like path, mime_type, hashes, etc.
-    """
-    mime = _init_magic()
-    current_time = time.time()
-
-    logger.info("Scanning %s for payloads modified within %d seconds", directory, max_age_seconds)
-
-    for file_path, mtime, size in _scan_files(directory):
-        if (current_time - mtime) <= max_age_seconds:
-            meta = _extract_metadata(file_path, mtime, size, mime)
-            if meta:
-                yield meta
 
 
 def scan_payloads_by_range(

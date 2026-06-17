@@ -164,7 +164,7 @@ class TestDownloadPayload:
             )
 
         assert response.status_code == 422
-        assert "traversal" in response.json()["detail"].lower()
+        assert "directory is not a known honeypot path" in response.json()["detail"].lower()
 
     def test_download_absolute_path_returns_422(self) -> None:
         """A locator with an absolute path should be rejected with 422."""
@@ -177,7 +177,7 @@ class TestDownloadPayload:
             )
 
         assert response.status_code == 422
-        assert "absolute" in response.json()["detail"].lower()
+        assert "directory is not a known honeypot path" in response.json()["detail"].lower()
 
     def test_download_symlink_escape_returns_422(self) -> None:
         """A symlink inside BASE_DATA_DIR pointing outside should be rejected."""
@@ -194,7 +194,7 @@ class TestDownloadPayload:
                 )
 
         assert response.status_code == 422
-        assert "path traversal" in response.json()["detail"].lower()
+        assert "symlink" in response.json()["detail"].lower()
 
     def test_download_content_disposition_header(self) -> None:
         """Download response should include a Content-Disposition header with the filename."""
