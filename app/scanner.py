@@ -69,7 +69,7 @@ def _scan_files(directory: Path | str) -> Generator[tuple[Path, float, int]]:
         logger.warning("Directory does not exist: %s", base_path)
         return
 
-    for file_path in base_path.rglob("*"):
+    for file_path in base_path.iterdir():
         if not file_path.is_file():
             continue
         try:

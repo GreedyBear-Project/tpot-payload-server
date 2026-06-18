@@ -63,9 +63,6 @@ convention = "google"
 "app/hasher.py" = [
     "S324",     # Probable use of insecure hash functions (used for malware identification)
 ]
-"app/routes.py" = [
-    "PLR2004",  # Magic value used in comparison (64 for SHA-256 length check)
-]
 
 [tool.ruff.lint.isort]
 known-first-party = [
