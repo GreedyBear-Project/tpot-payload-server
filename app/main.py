@@ -1,9 +1,18 @@
+"""FastAPI application entry point for the T-Pot Payload Server."""
+
 from fastapi import FastAPI
 
-app = FastAPI(title="T-Pot Payload Server")
+from app.routes import router
+
+app = FastAPI(
+    title="T-Pot Payload Server",
+    description=("Stateless API to query and retrieve honeypot payload files from T-Pot data directories."),
+)
+
+app.include_router(router)
 
 
-@app.get("/")
-def read_root() -> dict[str, str]:
-    """Return a hello message from T-Pot Payload Server."""
-    return {"message": "Hello from T-Pot Payload Server"}
+@app.get("/health")
+def health_check() -> dict[str, str]:
+    """Health check endpoint."""
+    return {"status": "ok"}
