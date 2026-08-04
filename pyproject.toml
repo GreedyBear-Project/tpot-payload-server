@@ -16,7 +16,7 @@ test = [
     "httpx==0.28.1",
 ]
 lint = [
-    "ruff==0.15.20",
+    "ruff==0.16.1",
     "pre-commit==4.6.0",
 ]
 
