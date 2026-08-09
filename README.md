@@ -39,8 +39,8 @@ flowchart TD
         DataDir -.->|"Read-Only Mount (:ro)"| Container
     end
 
-    GreedyBear["GreedyBear / Consumers"] -->|GET /api/v1/payloads/recent| Auth
-    GreedyBear -->|GET /api/v1/payloads/download/{locator}| Auth
+    GreedyBear["GreedyBear / Consumers"] -->|"GET /api/v1/payloads/recent"| Auth
+    GreedyBear -->|"GET /api/v1/payloads/download/{locator}"| Auth
     Auth --> FastAPI
     FastAPI --> Scanner
 ```
