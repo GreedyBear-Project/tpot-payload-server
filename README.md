@@ -36,7 +36,7 @@ flowchart TD
             Scanner["Metadata Scanner & Hasher"]
         end
 
-        DataDir -.->|Read-Only Mount (:ro)| Container
+        DataDir -.->|"Read-Only Mount (:ro)"| Container
     end
 
     GreedyBear["GreedyBear / Consumers"] -->|GET /api/v1/payloads/recent| Auth
@@ -92,8 +92,7 @@ All settings can be configured via environment variables in `docker/.env`:
 | `TPOT_DATA_PATH` | **Yes** | *(None)* | **Absolute path** to T-Pot's data directory on the host system (e.g. `/home/user/tpotce/data` or `/data`). |
 | `API_KEY` | No | *(Empty)* | Secret key for authenticating API requests via the `X-API-Key` header. When empty/unset, authentication is disabled. |
 | `API_PORT` | No | `64444` | Host port mapped to the API service container. |
-| `BASE_DATA_DIR` | No | `/data` | Root mount directory inside the container for honeypot data volumes. |
-| `HONEYPOT_DIRS` | No | `dionaea/binaries,cowrie/downloads,honeytrap/downloads,adbhoney/downloads` | Comma-separated list of relative honeypot directories under `BASE_DATA_DIR` to scan for payloads. |
+| `HONEYPOT_DIRS` | No | `dionaea/binaries,cowrie/downloads,honeytrap/downloads,adbhoney/downloads` | Comma-separated list of relative honeypot subdirectories to scan for payloads. |
 
 ---
 

@@ -52,7 +52,6 @@ ENV PATH="/app/.venv/bin:$PATH"
 ENV VIRTUAL_ENV="/app/.venv"
 
 # Application defaults (overridable at runtime)
-ENV BASE_DATA_DIR="/data"
 ENV HONEYPOT_DIRS="dionaea/binaries,cowrie/downloads,honeytrap/downloads,adbhoney/downloads"
 ENV API_KEY=""
 

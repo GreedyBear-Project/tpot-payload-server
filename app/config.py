@@ -13,9 +13,8 @@ import os
 API_KEY: str = os.getenv("API_KEY", "")
 
 # Root directory where honeypot data volumes are mounted.
-# In production this is typically /data, matching the docker-compose
-# volume mount targets.
-BASE_DATA_DIR: str = os.getenv("BASE_DATA_DIR", "/data")
+# This is an internal container path and is intentionally hardcoded.
+BASE_DATA_DIR: str = "/data"
 
 # Comma-separated list of honeypot subdirectory names under BASE_DATA_DIR.
 # Each entry corresponds to a mounted honeypot data directory, e.g.
