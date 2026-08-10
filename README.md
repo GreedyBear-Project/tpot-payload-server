@@ -52,7 +52,7 @@ flowchart TD
 ### Prerequisites
 
 - **Docker** 20.10+ and **Docker Compose** v2.0+
-- A running instance of **T-Pot CE** (or existing honeypot data directories on host)
+- A running instance of **T-Pot CE** (or existing honeypot data directories on host, currently supported by version **T-Pot 24.04.1**)
 
 ### Quick Start
 
