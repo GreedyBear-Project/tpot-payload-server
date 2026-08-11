@@ -15,7 +15,6 @@ services:
       - "${API_PORT:-64444}:8080"
     environment:
       - API_KEY=${API_KEY:-}
-      - BASE_DATA_DIR=/data
       - HONEYPOT_DIRS=${HONEYPOT_DIRS:-dionaea/binaries,cowrie/downloads,honeytrap/downloads,adbhoney/downloads}
     volumes:
       - ${TPOT_DATA_PATH:?TPOT_DATA_PATH must be set}/dionaea/binaries:/data/dionaea/binaries:ro
