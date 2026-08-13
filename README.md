@@ -54,7 +54,19 @@ flowchart TD
 - **Docker** 20.10+ and **Docker Compose** v2.0+
 - A running instance of **T-Pot CE** (or existing honeypot data directories on host, currently supported by version **T-Pot 24.04.1**)
 
-### Quick Start
+### Automated Installation (Recommended)
+
+Run the included `install.sh` script to automatically detect your T-Pot installation, generate a secure API key, configure an HTTPS reverse proxy, and deploy the container stack.
+
+```bash
+git clone https://github.com/GreedyBear-Project/tpot-payload-server.git
+cd tpot-payload-server
+sudo ./install.sh
+```
+
+> **Note:** The deployment runs independently and safely survives T-Pot updates (`git reset --hard`).
+
+### Manual Installation
 
 1. **Clone the repository:**
    ```bash
@@ -79,7 +91,12 @@ flowchart TD
 
 4. **Verify container health:**
    ```bash
+   # If using the default HTTPS proxy:
+   curl -k https://localhost:64445/health
+
+   # If you disabled the proxy or are testing the API directly:
    curl http://localhost:64444/health
+
    # Expected response: {"status":"ok"}
    ```
 
@@ -92,6 +109,7 @@ All settings can be configured via environment variables in `docker/.env`:
 | `TPOT_DATA_PATH` | **Yes** | *(None)* | **Absolute path** to T-Pot's data directory on the host system (e.g. `/home/user/tpotce/data` or `/data`). |
 | `API_KEY` | No | *(Empty)* | Secret key for authenticating API requests via the `X-API-Key` header. When empty/unset, authentication is disabled. |
 | `API_PORT` | No | `64444` | Host port mapped to the API service container. |
+| `PROXY_PORT` | No | `64445` | Host port for the NGINX HTTPS reverse proxy. |
 | `HONEYPOT_DIRS` | No | `dionaea/binaries,cowrie/downloads,honeytrap/downloads,adbhoney/downloads` | Comma-separated list of relative honeypot subdirectories to scan for payloads. |
 
 ---
