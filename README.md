@@ -56,7 +56,7 @@ flowchart TD
 
 ### Automated Installation (Recommended)
 
-Run the included `install.sh` script to automatically detect your T-Pot installation, generate a secure API key, configure an HTTPS reverse proxy, and deploy the container stack.
+Run the included `install.sh` script to automatically detect your T-Pot installation (if at the default path, you can use the `--tpot-dir` flag to specify a custom path), generate a secure API key, configure an HTTPS reverse proxy, and deploy the container stack.
 
 ```bash
 git clone https://github.com/GreedyBear-Project/tpot-payload-server.git

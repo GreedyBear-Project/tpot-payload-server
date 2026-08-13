@@ -71,6 +71,8 @@ if [[ ! -f "docker/docker-compose.yml" ]]; then
 fi
 
 # ── Detect T-Pot ─────────────────────────────────────────────────────────
+
+# This may not work for custom T-Pot paths for custom paths use the --tpot-dir flag
 info "Detecting T-Pot installation ..."
 if [[ -z "$TPOT_DIR" ]]; then
     for candidate in ".." "../tpotce" "$HOME/tpotce" "/home/${SUDO_USER:-}/tpotce" "/opt/tpot/tpotce" "/home/tsec/tpotce"; do
