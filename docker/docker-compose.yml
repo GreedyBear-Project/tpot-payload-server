@@ -31,3 +31,24 @@ services:
       retries: 3
       start_period: 5s
     restart: unless-stopped
+
+  nginx-proxy:
+    image: nginx:1.31.2-alpine
+    container_name: tpot-payload-server-nginx
+    ports:
+      - "${PROXY_PORT:-64445}:443"
+    volumes:
+      - ./nginx/tpot-payload-server.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${TPOT_DATA_PATH:?TPOT_DATA_PATH must be set}/nginx/cert/nginx.crt:/etc/nginx/cert/nginx.crt:ro
+      - ${TPOT_DATA_PATH}/nginx/cert/nginx.key:/etc/nginx/cert/nginx.key:ro
+    depends_on:
+      tpot-payload-server:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
