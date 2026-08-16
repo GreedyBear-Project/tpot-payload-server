@@ -20,8 +20,10 @@ Please complete this checklist carefully. It helps guide your contribution and l
 ### Formalities
 
 - [ ] I chose an appropriate title for the pull request in the form: `<feature name>. Closes #999`
+      - **Release PRs** (develop → main): Title must be the version number (e.g. `0.2.0`)
 - [ ] My branch is based on `develop`.
 - [ ] The pull request is for the branch `develop`.
+      - **Exception**: Release PRs target `main`.
 - [ ] I have reviewed and verified any LLM-generated code included in this PR.
 
 ### Docs and tests
