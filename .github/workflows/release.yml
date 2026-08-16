@@ -1,0 +1,47 @@
+name: Release
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    name: Create release and tag
+    runs-on: ubuntu-latest
+    if: >
+      github.event.pull_request.merged == true &&
+      github.base_ref == 'main'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check version tag format
+        id: check-tag
+        run: |
+          if [[ "${{ github.event.pull_request.title }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "match=true" >> $GITHUB_OUTPUT
+            echo "PR title matches semver: ${{ github.event.pull_request.title }}"
+          else
+            echo "match=false" >> $GITHUB_OUTPUT
+            echo "PR title does not match semver - skipping release"
+          fi
+
+      - name: Create release
+        if: steps.check-tag.outputs.match == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.pull_request.title }}
+          name: Version ${{ github.event.pull_request.title }}
+          draft: false
+          generate_release_notes: true
+          prerelease: false
+          target_commitish: ${{ github.base_ref }}
+          append_body: true
