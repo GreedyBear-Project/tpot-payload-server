@@ -16,7 +16,7 @@ test = [
     "httpx==0.28.1",
 ]
 lint = [
-    "ruff==0.15.20",
+    "ruff==0.16.4",
     "pre-commit==4.6.2",
 ]
 
@@ -50,6 +50,7 @@ ignore = [
     "ISC001",  # Conflicts with formatter
     "D100",    # Missing docstring in public module
     "D104",    # Missing docstring in public package
+    "CPY001",  # Missing copyright notice at top of file
 ]
 
 [tool.ruff.lint.pydocstyle]
