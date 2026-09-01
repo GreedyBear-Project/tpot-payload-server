@@ -15,6 +15,11 @@ jobs:
   release:
     name: Create release and tag
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      match: ${{ steps.check-tag.outputs.match }}
+      version: ${{ steps.check-tag.outputs.version }}
     if: >
       github.event.pull_request.merged == true &&
       github.base_ref == 'main'
@@ -28,6 +33,7 @@ jobs:
         run: |
           if [[ "${{ github.event.pull_request.title }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "match=true" >> $GITHUB_OUTPUT
+            echo "version=${{ github.event.pull_request.title }}" >> $GITHUB_OUTPUT
             echo "PR title matches semver: ${{ github.event.pull_request.title }}"
           else
             echo "match=false" >> $GITHUB_OUTPUT
@@ -45,3 +51,15 @@ jobs:
           prerelease: false
           target_commitish: ${{ github.base_ref }}
           append_body: true
+
+  publish-image:
+    name: Publish Docker image
+    needs: release
+    if: needs.release.outputs.match == 'true'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/docker_publish.yml
+    with:
+      ref: ${{ needs.release.outputs.version }}
+      version: ${{ needs.release.outputs.version }}
