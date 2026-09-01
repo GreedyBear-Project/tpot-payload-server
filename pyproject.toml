@@ -1,6 +1,6 @@
 [project]
 name = "tpot-payload-server"
-version = "0.1.0"
+version = "0.2.0"
 description = "Payload integration project for T-Pot and GreedyBear"
 readme = "README.md"
 requires-python = ">=3.14"
