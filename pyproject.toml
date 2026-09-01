@@ -1,13 +1,13 @@
 [project]
 name = "tpot-payload-server"
-version = "0.1.0"
+version = "0.2.0"
 description = "Payload integration project for T-Pot and GreedyBear"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "fastapi==0.141.1",
     "python-magic==0.4.27",
-    "uvicorn==0.52.1",
+    "uvicorn==0.52.4",
 ]
 
 [dependency-groups]
@@ -16,8 +16,8 @@ test = [
     "httpx==0.28.1",
 ]
 lint = [
-    "ruff==0.15.20",
-    "pre-commit==4.6.1",
+    "ruff==0.16.5",
+    "pre-commit==4.6.2",
 ]
 
 [tool.ruff]
@@ -50,6 +50,7 @@ ignore = [
     "ISC001",  # Conflicts with formatter
     "D100",    # Missing docstring in public module
     "D104",    # Missing docstring in public package
+    "CPY001",  # Missing copyright notice at top of file
 ]
 
 [tool.ruff.lint.pydocstyle]
