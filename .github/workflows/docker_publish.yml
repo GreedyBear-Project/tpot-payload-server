@@ -1,6 +1,6 @@
 name: Build and publish Docker images
 
-# Publishes the tpot-payload-server image to the 
+# Publishes the tpot-payload-server image to the
 # GitHub Container Registry (GHCR) under ghcr.io/greedybear-project.
 
 on:
@@ -22,10 +22,13 @@ on:
         type: string
         required: false
 
-# cancel superseded runs for the same ref
+# Cancel superseded runs for the same ref. The group must not depend on
+# github.workflow: in a reusable workflow that resolves to the *caller's* name,
+# which collides with the calling workflow's own concurrency group and prevents
+# the called job from ever starting. Release builds are never cancelled.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: docker-publish-${{ inputs.ref || github.ref }}
+  cancel-in-progress: ${{ inputs.version == '' }}
 
 env:
   GHCR_NAMESPACE: ghcr.io/greedybear-project
