@@ -1,0 +1,88 @@
+name: Build and publish Docker images
+
+# Publishes the tpot-payload-server image to the 
+# GitHub Container Registry (GHCR) under ghcr.io/greedybear-project.
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref to build. Defaults to the triggering ref.
+        type: string
+        required: false
+      version:
+        description: Semver version to tag the image with, e.g. 1.2.3.
+        type: string
+        required: false
+
+# cancel superseded runs for the same ref
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GHCR_NAMESPACE: ghcr.io/greedybear-project
+
+jobs:
+  build-and-push:
+    name: Build and push ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: tpot-payload-server
+            dockerfile: docker/Dockerfile
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.GHCR_NAMESPACE }}/${{ matrix.image }}
+          #   main branch      -> prod
+          #   develop branch   -> stag
+          #   X.Y.Z git tag    -> X.Y.Z
+          #   release.yml call -> X.Y.Z (from the version input)
+          tags: |
+            type=raw,value=prod,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=stag,enable=${{ github.ref == 'refs/heads/develop' }}
+            type=semver,pattern={{version}}
+            type=raw,value=${{ inputs.version }},enable=${{ inputs.version != '' }}
+          flavor: |
+            latest=false
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
