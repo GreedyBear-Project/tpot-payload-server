@@ -63,20 +63,25 @@ def _init_magic() -> magic.Magic | None:
 
 
 def _scan_files(directory: Path | str) -> Generator[tuple[Path, float, int]]:
-    """Helper to recursively scan a directory for files, handling OSErrors."""
+    """Helper to scan a directory's immediate entries for files, handling OSErrors."""
     base_path = Path(directory)
     if not base_path.is_dir():
         logger.warning("Directory does not exist: %s", base_path)
         return
 
-    for file_path in base_path.iterdir():
-        if not file_path.is_file():
-            continue
+    try:
+        files = [f for f in base_path.iterdir() if f.is_file()]
+    except OSError:
+        logger.exception("Failed to list directory %s; skipping it", base_path)
+        return
+
+    for file_path in files:
         try:
             stat_result = file_path.stat()
-            yield file_path, stat_result.st_mtime, stat_result.st_size
         except OSError:
             logger.exception("Failed to process %s", file_path)
+            continue
+        yield file_path, stat_result.st_mtime, stat_result.st_size
 
 
 def _extract_metadata(
@@ -115,7 +120,7 @@ def scan_payloads_by_range(
     so GreedyBear can request precisely the extraction window it needs.
 
     Args:
-        directory: Directory to scan recursively.
+        directory: Directory to scan (non-recursively).
         start_ts: Start of the time window (Unix timestamp, inclusive).
         end_ts: End of the time window (Unix timestamp, inclusive).
         base_dir: Root mount point for deriving ``source_honeypot``.
