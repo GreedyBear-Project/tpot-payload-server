@@ -5,11 +5,10 @@ name: Build and publish Docker images
 
 on:
   push:
+    # Version builds arrive as a workflow_call from release.yml, not as a tag push
     branches:
       - main
       - develop
-    tags:
-      - "[0-9]+.[0-9]+.[0-9]+"
   workflow_dispatch:
   workflow_call:
     inputs:
@@ -69,7 +68,7 @@ jobs:
           images: ${{ env.GHCR_NAMESPACE }}/${{ matrix.image }}
           #   main branch      -> prod
           #   develop branch   -> stag
-          #   X.Y.Z git tag    -> X.Y.Z
+          #   dispatch on a tag -> X.Y.Z (from the ref)
           #   release.yml call -> X.Y.Z (from the version input)
           tags: |
             type=raw,value=prod,enable=${{ github.ref == 'refs/heads/main' }}
@@ -88,4 +87,4 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.image }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+          cache-to: ${{ inputs.version == '' && format('type=gha,mode=max,scope={0}', matrix.image) || '' }}
