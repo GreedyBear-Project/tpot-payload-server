@@ -7,8 +7,9 @@ updates:
       day: "tuesday"
     target-branch: "develop"
 
+  # Must be "/" — Dependabot locates .github/workflows from the repo root.
   - package-ecosystem: "github-actions"
-    directory: "/.github"
+    directory: "/"
     schedule:
       interval: "weekly"
       day: "tuesday"
