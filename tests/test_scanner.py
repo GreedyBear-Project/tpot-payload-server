@@ -163,3 +163,26 @@ class TestScanPayloadsByRange:
                 )
 
             assert results == []
+
+    def test_permission_error_on_listing_is_skipped(self) -> None:
+        """An unreadable directory should yield nothing rather than raise."""
+        with tempfile.TemporaryDirectory() as td:
+            honeypot_dir = Path(td) / "dionaea" / "binaries"
+            honeypot_dir.mkdir(parents=True)
+            (honeypot_dir / "unreachable.bin").write_bytes(b"content")
+
+            now = time.time()
+            with (
+                patch("app.scanner.magic.Magic", side_effect=magic.MagicException("no magic")),
+                patch.object(Path, "iterdir", side_effect=PermissionError(13, "Permission denied")),
+            ):
+                results = list(
+                    scan_payloads_by_range(
+                        directory=honeypot_dir,
+                        start_ts=now - 60,
+                        end_ts=now + 60,
+                        base_dir=td,
+                    ),
+                )
+
+            assert results == []
