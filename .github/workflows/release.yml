@@ -1,4 +1,7 @@
-name: Release
+name: Release and publish
+
+# Creates the X.Y.Z release and tag when a PR titled with a version number is
+# merged into main, then builds and publishes the version-tagged Docker images.
 
 on:
   pull_request:
@@ -9,43 +12,41 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   release:
     name: Create release and tag
     runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
     permissions:
       contents: write
     outputs:
       match: ${{ steps.check-tag.outputs.match }}
       version: ${{ steps.check-tag.outputs.version }}
-    if: >
-      github.event.pull_request.merged == true &&
-      github.base_ref == 'main'
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v7
 
       - name: Check version tag format
         id: check-tag
+        env:
+          # via the environment, so a crafted PR title cannot inject shell code
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
-          if [[ "${{ github.event.pull_request.title }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "match=true" >> $GITHUB_OUTPUT
-            echo "version=${{ github.event.pull_request.title }}" >> $GITHUB_OUTPUT
-            echo "PR title matches semver: ${{ github.event.pull_request.title }}"
+          if [[ "$PR_TITLE" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "match=true" >> "$GITHUB_OUTPUT"
+            echo "version=$PR_TITLE" >> "$GITHUB_OUTPUT"
+            echo "PR title matches semver: $PR_TITLE"
           else
-            echo "match=false" >> $GITHUB_OUTPUT
+            echo "match=false" >> "$GITHUB_OUTPUT"
             echo "PR title does not match semver - skipping release"
           fi
 
       - name: Create release
         if: steps.check-tag.outputs.match == 'true'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ github.event.pull_request.title }}
-          name: Version ${{ github.event.pull_request.title }}
+          tag_name: ${{ steps.check-tag.outputs.version }}
+          name: Version ${{ steps.check-tag.outputs.version }}
           draft: false
           generate_release_notes: true
           prerelease: false
@@ -53,7 +54,7 @@ jobs:
           append_body: true
 
   publish-image:
-    name: Publish Docker image
+    name: Publish Docker images
     needs: release
     if: needs.release.outputs.match == 'true'
     permissions:

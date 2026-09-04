@@ -21,6 +21,9 @@ services:
       - ${TPOT_DATA_PATH}/cowrie/downloads:/data/cowrie/downloads:ro
       - ${TPOT_DATA_PATH}/honeytrap/downloads:/data/honeytrap/downloads:ro
       - ${TPOT_DATA_PATH}/adbhoney/downloads:/data/adbhoney/downloads:ro
+    group_add:
+      # T-Pot owns everything under its data path as tpot:tpot (uid/gid 2000)
+      - 2000
     read_only: true
     security_opt:
       - no-new-privileges:true

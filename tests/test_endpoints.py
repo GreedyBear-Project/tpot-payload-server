@@ -104,6 +104,43 @@ class TestListRecentPayloads:
             assert response.status_code == 200
             assert response.json() == []
 
+    def test_unreadable_dir_does_not_suppress_other_honeypots(self) -> None:
+        """One honeypot directory failing to list must not fail the request."""
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            dionaea_dir = base / "dionaea" / "binaries"
+            dionaea_dir.mkdir(parents=True)
+            (dionaea_dir / "sample.bin").write_bytes(b"unreadable")
+            cowrie_dir = base / "cowrie" / "downloads"
+            cowrie_dir.mkdir(parents=True)
+            (cowrie_dir / "payload.sh").write_bytes(b"#!/bin/bash\necho pwned")
+
+            real_iterdir = Path.iterdir
+
+            def deny_dionaea(self: Path) -> object:
+                if self == dionaea_dir:
+                    raise PermissionError(13, "Permission denied")
+                return real_iterdir(self)
+
+            now = time.time()
+            with (
+                patch("app.routes.BASE_DATA_DIR", td),
+                patch("app.routes.HONEYPOT_DIRS", ["dionaea/binaries", "cowrie/downloads"]),
+                patch("app.scanner.magic.Magic", side_effect=magic.MagicException("no libmagic")),
+                patch.object(Path, "iterdir", deny_dionaea),
+            ):
+                response = client.get(
+                    "/api/v1/payloads/recent",
+                    params={"start_ts": now - 60, "end_ts": now + 60},
+                )
+
+            assert response.status_code == 200
+            data = response.json()
+            # dionaea is skipped; cowrie is still reported.
+            assert len(data) == 1
+            assert data[0]["source_honeypot"] == "cowrie"
+            assert data[0]["locator"] == "cowrie/downloads/payload.sh"
+
     def test_start_ts_after_end_ts_returns_422(self) -> None:
         """start_ts > end_ts should be rejected."""
         response = client.get(
