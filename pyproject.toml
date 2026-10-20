@@ -17,7 +17,7 @@ test = [
 ]
 lint = [
     "ruff==0.16.10",
-    "pre-commit==4.6.2",
+    "pre-commit==4.7.0",
 ]
 
 [tool.ruff]
