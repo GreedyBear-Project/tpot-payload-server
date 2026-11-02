@@ -5,7 +5,7 @@ description = "Payload integration project for T-Pot and GreedyBear"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "fastapi==0.143.3",
+    "fastapi==0.162.0",
     "python-magic==0.4.27",
     "uvicorn==0.54.0",
 ]
