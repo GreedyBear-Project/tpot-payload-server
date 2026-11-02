@@ -1,0 +1,6 @@
+# --------------------------------------------------------------------------
+# Staging environment override: pulls the staging image built from develop
+# --------------------------------------------------------------------------
+services:
+  tpot-payload-server:
+    image: ghcr.io/greedybear-project/tpot-payload-server:stag
