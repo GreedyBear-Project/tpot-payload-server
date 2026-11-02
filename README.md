@@ -61,7 +61,18 @@ Run the included `install.sh` script to automatically detect your T-Pot installa
 ```bash
 git clone https://github.com/GreedyBear-Project/tpot-payload-server.git
 cd tpot-payload-server
+
+# Production deployment (default, pulls ghcr.io/greedybear-project/tpot-payload-server:prod)
 sudo ./install.sh
+
+# Staging deployment (pulls ghcr.io/greedybear-project/tpot-payload-server:stag)
+sudo ./install.sh --stag
+
+# Local development build (builds image from local source)
+sudo ./install.sh --dev
+
+# Pinned release version (pulls ghcr.io/greedybear-project/tpot-payload-server:0.2.2)
+sudo ./install.sh --version 0.2.2
 ```
 
 > **Note:** The deployment runs independently and safely survives T-Pot updates (`git reset --hard`).
@@ -84,9 +95,31 @@ sudo ./install.sh
    TPOT_DATA_PATH=/home/user/tpotce/data
    ```
 
-3. **Start the container:**
+   Choose your deployment image by configuring `COMPOSE_FILE` in `docker/.env`:
+   - **Production (default):** `COMPOSE_FILE=docker/docker-compose.yml`
+   - **Staging:** `COMPOSE_FILE=docker/docker-compose.yml:docker/stag.override.yml`
+   - **Local development build:** `COMPOSE_FILE=docker/docker-compose.yml:docker/local.override.yml`
+   - **Pinned release:** `COMPOSE_FILE=docker/docker-compose.yml:docker/version.override.yml` and set `TPOT_PAYLOAD_SERVER_VERSION=0.2.2`
+
+3. **Start the containers:**
+   Create a root `.env` symlink (or run compose from repository root):
    ```bash
+   ln -sf docker/.env .env
+   docker compose up -d
+   ```
+   Alternatively, specify the compose files explicitly:
+   ```bash
+   # Production
    docker compose -f docker/docker-compose.yml up -d
+
+   # Staging
+   docker compose -f docker/docker-compose.yml -f docker/stag.override.yml up -d
+
+   # Local development
+   docker compose -f docker/docker-compose.yml -f docker/local.override.yml up -d
+
+   # Pinned release version
+   TPOT_PAYLOAD_SERVER_VERSION=0.2.2 docker compose -f docker/docker-compose.yml -f docker/version.override.yml up -d
    ```
 
 4. **Verify container health:**
@@ -107,6 +140,8 @@ All settings can be configured via environment variables in `docker/.env`:
 | Environment Variable | Required | Default | Description |
 | :--- | :---: | :---: | :--- |
 | `TPOT_DATA_PATH` | **Yes** | *(None)* | **Absolute path** to T-Pot's data directory on the host system (e.g. `/home/user/tpotce/data` or `/data`). |
+| `COMPOSE_FILE` | No | `docker/docker-compose.yml` | Colon-separated list of Compose files to load (`docker/docker-compose.yml` base plus optional override files: `stag.override.yml`, `local.override.yml`, `version.override.yml`). |
+| `TPOT_PAYLOAD_SERVER_VERSION` | Conditional | *(Empty)* | Required when using `docker/version.override.yml` to specify the target release tag (e.g. `0.2.2`). |
 | `API_KEY` | No | *(Empty)* | Secret key for authenticating API requests via the `X-API-Key` header. When empty/unset, authentication is disabled. |
 | `API_PORT` | No | `64444` | Host port mapped to the API service container. |
 | `PROXY_PORT` | No | `64445` | Host port for the NGINX HTTPS reverse proxy. |

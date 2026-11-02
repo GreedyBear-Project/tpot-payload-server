@@ -10,6 +10,9 @@ TPOT_DIR=""
 TPOT_DATA_PATH=""
 API_PORT="64444"
 PROXY_PORT="64445"
+DEPLOY_ENV="prod"
+VERSION_PIN=""
+ENV_EXPLICIT=false
 SKIP_PROXY=false
 SKIP_CONFIRM=false
 
@@ -42,10 +45,14 @@ usage() {
 Usage: sudo $0 [OPTIONS]
 
 Options:
-  --tpot-dir <path>  Path to T-Pot installation (default: auto-detect)
-  --no-proxy         Skip NGINX proxy setup
-  -y                 Skip confirmation prompts
-  -h, --help         Show this help message
+  --tpot-dir <path>          Path to T-Pot installation (default: auto-detect)
+  --env <environment>       Deployment environment: prod (default), stag, or local
+  --stag                     Deploy staging image (shorthand for --env stag)
+  --dev, --local             Deploy local build from source (shorthand for --env local)
+  --version, --release <tag> Pin a specific image release (e.g. 0.2.2)
+  --no-proxy                 Skip NGINX proxy setup
+  -y                         Skip confirmation prompts
+  -h, --help                 Show this help message
 EOF
     exit 0
 }
@@ -53,13 +60,28 @@ EOF
 # ── Argument Parsing ─────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --tpot-dir) TPOT_DIR="$2"; shift 2 ;;
-        --no-proxy) SKIP_PROXY=true; shift ;;
-        -y)         SKIP_CONFIRM=true; shift ;;
-        -h|--help)  usage ;;
-        *)          fatal "Unknown option: $1" ;;
+        --tpot-dir)          TPOT_DIR="$2"; shift 2 ;;
+        --env)               DEPLOY_ENV="$2"; ENV_EXPLICIT=true; shift 2 ;;
+        --stag)              DEPLOY_ENV="stag"; ENV_EXPLICIT=true; shift ;;
+        --dev|--local)       DEPLOY_ENV="local"; ENV_EXPLICIT=true; shift ;;
+        --version|--release) VERSION_PIN="$2"; DEPLOY_ENV="version"; ENV_EXPLICIT=true; shift 2 ;;
+        --no-proxy)          SKIP_PROXY=true; shift ;;
+        -y)                  SKIP_CONFIRM=true; shift ;;
+        -h|--help)           usage ;;
+        *)                   fatal "Unknown option: $1" ;;
     esac
 done
+
+case "$DEPLOY_ENV" in
+    prod|stag|local|version) ;;
+    staging) DEPLOY_ENV="stag" ;;
+    dev)     DEPLOY_ENV="local" ;;
+    *)       fatal "Invalid environment: $DEPLOY_ENV. Choose from: prod, stag, local." ;;
+esac
+
+if [[ "$DEPLOY_ENV" == "version" && -z "$VERSION_PIN" ]]; then
+    fatal "Version tag required when using --version/--release."
+fi
 
 # ── Pre Checks ────────────────────────────────────────────────────
 if [[ $EUID -ne 0 ]]; then fatal "This script must be run as root (sudo)."; fi
@@ -90,11 +112,32 @@ if [[ ! -d "$TPOT_DATA_PATH" ]]; then
 fi
 ok "T-Pot data path: $TPOT_DATA_PATH"
 
+# ── Environment & Compose Mapping ────────────────────────────────────────
+case "$DEPLOY_ENV" in
+    prod)
+        COMPOSE_FILE="docker/docker-compose.yml"
+        IMAGE_DESC="production (ghcr.io/greedybear-project/tpot-payload-server:prod)"
+        ;;
+    stag)
+        COMPOSE_FILE="docker/docker-compose.yml:docker/stag.override.yml"
+        IMAGE_DESC="staging (ghcr.io/greedybear-project/tpot-payload-server:stag)"
+        ;;
+    local)
+        COMPOSE_FILE="docker/docker-compose.yml:docker/local.override.yml"
+        IMAGE_DESC="local build (from source)"
+        ;;
+    version)
+        COMPOSE_FILE="docker/docker-compose.yml:docker/version.override.yml"
+        IMAGE_DESC="version pinned (ghcr.io/greedybear-project/tpot-payload-server:${VERSION_PIN})"
+        ;;
+esac
+
 # ── Confirmation ─────────────────────────────────────────────────────────
 if [[ "$SKIP_CONFIRM" == false ]]; then
     echo
     echo -e "  ${BLUE}Installation summary:${NC}"
-    echo -e "    T-Pot directory:  $TPOT_DIR"
+    echo -e "    Environment:     $DEPLOY_ENV ($IMAGE_DESC)"
+    echo -e "    T-Pot directory: $TPOT_DIR"
     echo -e "    T-Pot data path: $TPOT_DATA_PATH"
     if [[ "$SKIP_PROXY" == true ]]; then
         echo -e "    HTTPS proxy:     disabled"
@@ -125,21 +168,56 @@ if [[ ! -f "$ENV_FILE" ]]; then
     sed -i "s|^TPOT_DATA_PATH=.*|TPOT_DATA_PATH=${TPOT_DATA_PATH}|" "$ENV_FILE"
     sed -i "s|^API_PORT=.*|API_PORT=${API_PORT}|" "$ENV_FILE"
     sed -i "s|^PROXY_PORT=.*|PROXY_PORT=${PROXY_PORT}|" "$ENV_FILE"
+    sed -i "s|^COMPOSE_FILE=.*|COMPOSE_FILE=${COMPOSE_FILE}|" "$ENV_FILE"
+    if [[ -n "$VERSION_PIN" ]]; then
+        sed -i "s|^TPOT_PAYLOAD_SERVER_VERSION=.*|TPOT_PAYLOAD_SERVER_VERSION=${VERSION_PIN}|" "$ENV_FILE"
+    fi
 
     echo
     echo -e "  ${YELLOW}Generated API Key:${NC} ${API_KEY}"
     echo -e "  ${RED}⚠ Save this key! It is stored in docker/.env and will not be shown again.${NC}"
     echo
 else
-    warn "$ENV_FILE already exists, keeping existing configuration."
+    if [[ "$ENV_EXPLICIT" == true ]]; then
+        info "Updating environment configuration in $ENV_FILE ($DEPLOY_ENV) ..."
+        if grep -q '^COMPOSE_FILE=' "$ENV_FILE"; then
+            sed -i "s|^COMPOSE_FILE=.*|COMPOSE_FILE=${COMPOSE_FILE}|" "$ENV_FILE"
+        else
+            echo "COMPOSE_FILE=${COMPOSE_FILE}" >> "$ENV_FILE"
+        fi
+        if [[ -n "$VERSION_PIN" ]]; then
+            if grep -q '^TPOT_PAYLOAD_SERVER_VERSION=' "$ENV_FILE"; then
+                sed -i "s|^TPOT_PAYLOAD_SERVER_VERSION=.*|TPOT_PAYLOAD_SERVER_VERSION=${VERSION_PIN}|" "$ENV_FILE"
+            else
+                echo "TPOT_PAYLOAD_SERVER_VERSION=${VERSION_PIN}" >> "$ENV_FILE"
+            fi
+        fi
+    else
+        warn "$ENV_FILE already exists, keeping existing configuration."
+        if grep -q '^COMPOSE_FILE=' "$ENV_FILE"; then
+            COMPOSE_FILE=$(grep -E '^COMPOSE_FILE=' "$ENV_FILE" | cut -d'=' -f2- | tr -d '"'"'")
+        fi
+    fi
+fi
+
+# Ensure root .env symlink exists so docker compose works from repository root
+if [[ ! -e ".env" ]]; then
+    ln -sf docker/.env .env
+    ok "Created .env symlink in repository root."
 fi
 
 # ── Deployment ───────────────────────────────────────────────────────────
-info "Deploying containers ..."
+info "Deploying containers ($IMAGE_DESC) ..."
+IFS=':' read -ra COMPOSE_PARTS <<< "$COMPOSE_FILE"
+COMPOSE_ARGS=()
+for file in "${COMPOSE_PARTS[@]}"; do
+    COMPOSE_ARGS+=(-f "$file")
+done
+
 if [[ "$SKIP_PROXY" == true ]]; then
-    docker compose -f docker/docker-compose.yml up -d tpot-payload-server
+    docker compose "${COMPOSE_ARGS[@]}" up -d tpot-payload-server
 else
-    docker compose -f docker/docker-compose.yml up -d
+    docker compose "${COMPOSE_ARGS[@]}" up -d
 fi
 
 echo
@@ -152,5 +230,5 @@ if [[ "$SKIP_PROXY" == true ]]; then
 else
     echo -e "  ${BLUE}API endpoint:${NC}  https://localhost:${PROXY_PORT}"
 fi
-echo -e "  ${BLUE}Manage with:${NC}   docker compose -f docker/docker-compose.yml logs"
+echo -e "  ${BLUE}Manage with:${NC}   docker compose logs"
 echo
