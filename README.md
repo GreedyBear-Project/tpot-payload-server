@@ -133,6 +133,32 @@ sudo ./install.sh --version 0.2.2
    # Expected response: {"status":"ok"}
    ```
 
+### Updating
+
+To update an existing deployment to the latest version:
+
+1. **Pull the latest repository changes** (in case Compose or NGINX configuration files were updated):
+   ```bash
+   git pull
+   ```
+
+2. **Update and restart the containers** based on your deployment mode:
+   - **Production (`prod`) or Staging (`stag`):**
+     ```bash
+     docker compose pull
+     docker compose up -d
+     ```
+   - **Pinned release version:**
+     Update `TPOT_PAYLOAD_SERVER_VERSION` in `docker/.env` (or run `sudo ./install.sh --version <new_version>`), then pull and restart:
+     ```bash
+     docker compose pull
+     docker compose up -d
+     ```
+   - **Local development build:**
+     ```bash
+     docker compose up -d --build
+     ```
+
 ### Configuration Reference
 
 All settings can be configured via environment variables in `docker/.env`:
