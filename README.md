@@ -142,7 +142,14 @@ To update an existing deployment to the latest version:
    git pull
    ```
 
-2. **Update and restart the containers** based on your deployment mode:
+2. **Ensure `COMPOSE_FILE` and the root `.env` symlink are configured** (required if upgrading from an older installation that predates `COMPOSE_FILE`):
+   ```bash
+   grep -q '^COMPOSE_FILE=' docker/.env || echo "COMPOSE_FILE=docker/docker-compose.yml" >> docker/.env
+   ln -sf docker/.env .env
+   ```
+   *(Alternatively, re-running `sudo ./install.sh` will automatically add `COMPOSE_FILE` and create the symlink while preserving your existing `docker/.env` settings.)*
+
+3. **Update and restart the containers** based on your deployment mode:
    - **Production (`prod`) or Staging (`stag`):**
      ```bash
      docker compose pull

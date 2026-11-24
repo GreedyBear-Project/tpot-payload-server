@@ -196,6 +196,9 @@ else
         warn "$ENV_FILE already exists, keeping existing configuration."
         if grep -q '^COMPOSE_FILE=' "$ENV_FILE"; then
             COMPOSE_FILE=$(grep -E '^COMPOSE_FILE=' "$ENV_FILE" | cut -d'=' -f2- | tr -d '"'"'")
+        else
+            info "Adding COMPOSE_FILE to existing $ENV_FILE ..."
+            echo "COMPOSE_FILE=${COMPOSE_FILE}" >> "$ENV_FILE"
         fi
     fi
 fi
