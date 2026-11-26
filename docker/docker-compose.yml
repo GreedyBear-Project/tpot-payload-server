@@ -7,9 +7,7 @@
 
 services:
   tpot-payload-server:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
+    image: ghcr.io/greedybear-project/tpot-payload-server:prod
     container_name: tpot-payload-server
     ports:
       - "${API_PORT:-64444}:8080"

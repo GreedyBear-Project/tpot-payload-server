@@ -1,0 +1,7 @@
+# --------------------------------------------------------------------------
+# Version pinned override: pulls a specific semver image release
+# Set TPOT_PAYLOAD_SERVER_VERSION in your .env file (e.g. 0.2.2)
+# --------------------------------------------------------------------------
+services:
+  tpot-payload-server:
+    image: ghcr.io/greedybear-project/tpot-payload-server:${TPOT_PAYLOAD_SERVER_VERSION:?TPOT_PAYLOAD_SERVER_VERSION must be set}
