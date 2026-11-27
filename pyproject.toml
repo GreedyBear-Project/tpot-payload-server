@@ -1,23 +1,23 @@
 [project]
 name = "tpot-payload-server"
-version = "0.2.2"
+version = "0.2.3"
 description = "Payload integration project for T-Pot and GreedyBear"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "fastapi==0.141.1",
+    "fastapi==0.165.0",
     "python-magic==0.4.27",
-    "uvicorn==0.52.4",
+    "uvicorn==0.54.0",
 ]
 
 [dependency-groups]
 test = [
-    "pytest==9.1.1",
+    "pytest==9.2.0",
     "httpx==0.28.1",
 ]
 lint = [
-    "ruff==0.16.5",
-    "pre-commit==4.6.2",
+    "ruff==0.17.6",
+    "pre-commit==4.7.0",
 ]
 
 [tool.ruff]

@@ -7,9 +7,7 @@
 
 services:
   tpot-payload-server:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
+    image: ghcr.io/greedybear-project/tpot-payload-server:prod
     container_name: tpot-payload-server
     ports:
       - "${API_PORT:-64444}:8080"
@@ -17,10 +15,10 @@ services:
       - API_KEY=${API_KEY:-}
       - HONEYPOT_DIRS=${HONEYPOT_DIRS:-dionaea/binaries,cowrie/downloads,honeytrap/downloads,adbhoney/downloads}
     volumes:
-      - ${TPOT_DATA_PATH:?TPOT_DATA_PATH must be set}/dionaea/binaries:/data/dionaea/binaries:ro
-      - ${TPOT_DATA_PATH}/cowrie/downloads:/data/cowrie/downloads:ro
-      - ${TPOT_DATA_PATH}/honeytrap/downloads:/data/honeytrap/downloads:ro
-      - ${TPOT_DATA_PATH}/adbhoney/downloads:/data/adbhoney/downloads:ro
+      - ${TPOT_DATA_PATH:?TPOT_DATA_PATH must be set}/dionaea:/data/dionaea:ro
+      - ${TPOT_DATA_PATH}/cowrie:/data/cowrie:ro
+      - ${TPOT_DATA_PATH}/honeytrap:/data/honeytrap:ro
+      - ${TPOT_DATA_PATH}/adbhoney:/data/adbhoney:ro
     group_add:
       # T-Pot owns everything under its data path as tpot:tpot (uid/gid 2000)
       - 2000
